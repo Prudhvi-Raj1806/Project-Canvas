@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chromatic — Works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  /* ── RESET & ROOT ── */
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --bg: #0c0c0c;
+    --bg2: #111111;
+    --surface: #181818;
+    --border: rgba(255,255,255,0.07);
+    --text: #f0ece4;
+    --text2: #888880;
+    --text3: #444440;
+    --accent: #e8d5b0;
+    --glow: rgba(232,213,176,0.12);
+
+    /* palette — will shift */
+    --p0: 45,28,8;
+    --p1: 180,120,60;
+    --p2: 220,190,140;
+    --p3: 240,230,210;
+
+    --cursor-x: 50vw;
+    --cursor-y: 50vh;
+
+    --transition-palette: background 1.2s cubic-bezier(.4,0,.2,1),
+                          color 1.2s cubic-bezier(.4,0,.2,1),
+                          border-color 1.2s cubic-bezier(.4,0,.2,1);
+    transition: var(--transition-palette);
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* ── CUSTOM CURSOR ── */
+  #cursor-ring {
+    position: fixed; top:0; left:0; z-index:9999;
+    width: 36px; height: 36px;
+    border: 1px solid rgba(var(--p2), 0.7);
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%,-50%);
+    transition: width .25s, height .25s, border-color .6s, background .3s, transform .08s;
+    mix-blend-mode: difference;
+  }
+  #cursor-dot {
+    position: fixed; top:0; left:0; z-index:10000;
+    width: 5px; height: 5px;
+    background: rgba(var(--p3),1);
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%,-50%);
+    transition: background .6s, transform .04s;
+  }
+  body.hovering #cursor-ring {
+    width: 60px; height: 60px;
+    background: rgba(var(--p1),0.08);
+  }
+
+  /* ── NOISE GRAIN OVERLAY ── */
+  body::before {
+    content:''; position:fixed; inset:0; z-index:0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.028;
+    pointer-events: none;
+  }
+
+  /* ── CURSOR SPOTLIGHT ── */
+  #spotlight {
+    position: fixed; inset:0; z-index:1; pointer-events:none;
+    background: radial-gradient(
+      ellipse 600px 500px at var(--cursor-x) var(--cursor-y),
+      rgba(var(--p1), 0.05) 0%,
+      transparent 70%
+    );
+    transition: background 1.4s ease;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: fixed; top:0; left:0; right:0; z-index:100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 22px 40px;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(20px) saturate(1.2);
+    background: rgba(12,12,12,0.7);
+    transition: background 1.2s, border-color 1.2s;
+  }
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 300; letter-spacing: 0.18em;
+    color: rgba(var(--p3),1);
+    transition: color 1.2s;
+    text-transform: uppercase;
+  }
+  .logo span {
+    font-style: italic; font-weight: 400;
+    color: rgba(var(--p2),1);
+    transition: color 1.2s;
+  }
+  nav { display:flex; gap:32px; align-items:center; }
+  nav a {
+    text-decoration:none; color: var(--text2);
+    font-size: 11px; letter-spacing: .14em;
+    text-transform: uppercase;
+    transition: color .3s;
+    cursor: none;
+  }
+  nav a:hover { color: rgba(var(--p2),1); }
+  .nav-count {
+    font-size: 10px; color: var(--text3);
+    letter-spacing: .1em;
+    transition: color 1.2s;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh; display: flex;
+    flex-direction: column; justify-content: flex-end;
+    padding: 0 40px 60px;
+    position: relative; overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute; inset:0; z-index:0;
+    background: radial-gradient(ellipse 80% 60% at 60% 40%,
+      rgba(var(--p1),0.08) 0%, transparent 70%);
+    transition: background 1.4s ease;
+  }
+  .hero-grid-lines {
+    position: absolute; inset:0; z-index:0;
+    background-image:
+      linear-gradient(rgba(var(--p1),0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(var(--p1),0.04) 1px, transparent 1px);
+    background-size: 80px 80px;
+    transition: background-image 1.4s;
+  }
+  .hero-content { position:relative; z-index:2; max-width:640px; }
+  .hero-label {
+    font-size: 10px; letter-spacing: .2em; text-transform:uppercase;
+    color: rgba(var(--p2),0.7); margin-bottom: 24px;
+    display: flex; align-items:center; gap:12px;
+    transition: color 1.2s;
+  }
+  .hero-label::before {
+    content:''; display:inline-block; width:32px; height:1px;
+    background: rgba(var(--p2),0.5);
+    transition: background 1.2s;
+  }
+  h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(52px,8vw,110px);
+    font-weight: 300; line-height: .9;
+    letter-spacing: -.01em;
+    color: rgba(var(--p3),1);
+    transition: color 1.2s;
+  }
+  h1 em {
+    font-style: italic; font-weight: 400;
+    color: rgba(var(--p2),1);
+    transition: color 1.2s;
+  }
+  .hero-sub {
+    margin-top: 28px;
+    font-size: 12px; color: var(--text2); line-height: 1.8;
+    max-width: 360px; letter-spacing:.04em;
+  }
+  .hero-scroll {
+    position:absolute; right:40px; bottom:60px; z-index:2;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    color: var(--text3); font-size:10px; letter-spacing:.15em;
+    text-transform:uppercase;
+  }
+  .scroll-line {
+    width:1px; height:60px;
+    background: linear-gradient(to bottom, rgba(var(--p2),0.5), transparent);
+    transition: background 1.2s;
+    animation: scrollPulse 2s ease-in-out infinite;
+  }
+  @keyframes scrollPulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+  /* ── SECTION ── */
+  .section { position:relative; z-index:2; padding: 0 40px 120px; }
+  .section-header {
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding: 60px 0 40px;
+    border-top: 1px solid var(--border);
+    transition: border-color 1.2s;
+  }
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 42px; font-weight: 300;
+    color: rgba(var(--p3),0.9);
+    transition: color 1.2s;
+    letter-spacing: -.01em;
+  }
+  .section-meta {
+    font-size: 11px; color: var(--text3); letter-spacing:.08em;
+  }
+
+  /* ── GRID ── */
+  .works-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 2px;
+    position: relative;
+  }
+
+  .work-cell {
+    position: relative; overflow: hidden;
+    cursor: none;
+    background: var(--surface);
+    transition: transform .4s cubic-bezier(.2,0,.1,1), box-shadow .4s;
+  }
+
+  /* grid spans — varied layout */
+  .work-cell:nth-child(1)  { grid-column: span 5; grid-row: span 2; aspect-ratio: auto; }
+  .work-cell:nth-child(2)  { grid-column: span 7; }
+  .work-cell:nth-child(3)  { grid-column: span 3; }
+  .work-cell:nth-child(4)  { grid-column: span 4; }
+  .work-cell:nth-child(5)  { grid-column: span 4; grid-row: span 2; }
+  .work-cell:nth-child(6)  { grid-column: span 5; grid-row: span 1; }
+  .work-cell:nth-child(7)  { grid-column: span 3; }
+  .work-cell:nth-child(8)  { grid-column: span 7; }
+  .work-cell:nth-child(9)  { grid-column: span 5; }
+  .work-cell:nth-child(10) { grid-column: span 4; grid-row: span 2; }
+  .work-cell:nth-child(11) { grid-column: span 8; }
+  .work-cell:nth-child(12) { grid-column: span 4; grid-row: span 2; }
+  .work-cell:nth-child(13) { grid-column: span 5; }
+  .work-cell:nth-child(14) { grid-column: span 3; }
+  .work-cell:nth-child(15) { grid-column: span 5; }
+  .work-cell:nth-child(16) { grid-column: span 7; }
+
+  /* artwork canvases */
+  .work-artwork {
+    width: 100%; padding-bottom: 100%;
+    position: relative; overflow: hidden;
+  }
+  .work-cell:nth-child(1) .work-artwork,
+  .work-cell:nth-child(5) .work-artwork { padding-bottom: 140%; }
+  .work-cell:nth-child(2) .work-artwork { padding-bottom: 56%; }
+  .work-cell:nth-child(8) .work-artwork { padding-bottom: 60%; }
+
+  .work-canvas {
+    position: absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+
+  /* ── MAGNETIC HOVER ── */
+  .work-cell:hover { z-index:10; }
+  .work-cell:hover .work-overlay { opacity:1; }
+  .work-cell:hover .work-info { transform: translateY(0); opacity:1; }
+  .work-cell:hover .work-expand { opacity:1; transform: scale(1); }
+
+  /* overlay */
+  .work-overlay {
+    position:absolute; inset:0; z-index:3;
+    background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.2) 50%, transparent 100%);
+    opacity:0; transition: opacity .35s;
+  }
+  .work-info {
+    position:absolute; bottom:0; left:0; right:0; z-index:4;
+    padding: 24px 20px 20px;
+    transform: translateY(8px); opacity:0;
+    transition: transform .35s cubic-bezier(.2,0,.1,1), opacity .35s;
+  }
+  .work-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px; font-weight: 400; font-style: italic;
+    color: #fff; line-height:1.2; margin-bottom:6px;
+  }
+  .work-artist {
+    font-size: 10px; letter-spacing:.14em; text-transform:uppercase;
+    color: rgba(255,255,255,.55); margin-bottom:10px;
+  }
+  .work-tags { display:flex; gap:6px; flex-wrap:wrap; }
+  .work-tag {
+    font-size: 9px; letter-spacing:.1em; text-transform:uppercase;
+    padding: 3px 8px; border-radius: 2px;
+    background: rgba(var(--p1),0.3);
+    color: rgba(var(--p3),0.9);
+    border: 1px solid rgba(var(--p2),0.25);
+    transition: background 1.2s, color 1.2s, border-color 1.2s;
+  }
+  .work-expand {
+    position:absolute; top:16px; right:16px; z-index:4;
+    width:32px; height:32px;
+    border:1px solid rgba(255,255,255,.25); border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    color:rgba(255,255,255,.6); font-size:14px;
+    opacity:0; transform:scale(.8);
+    transition: opacity .35s, transform .35s;
+    backdrop-filter: blur(8px);
+    background: rgba(0,0,0,.2);
+  }
+
+  /* grid ripple effect */
+  .work-cell .ripple {
+    position:absolute; inset:0; z-index:2; pointer-events:none;
+    background: radial-gradient(circle at var(--rx,50%) var(--ry,50%),
+      rgba(var(--p2),0.15) 0%, transparent 60%);
+    opacity:0; transition: opacity .6s;
+  }
+  .work-cell:hover .ripple { opacity:1; }
+
+  /* ── GENERATED ART STYLES ── */
+  /* Each artwork is an SVG/CSS composition */
+  .art-wave { background: linear-gradient(135deg, rgba(var(--p0),1) 0%, rgba(var(--p1),0.6) 50%, rgba(var(--p2),0.2) 100%); }
+  .art-geo   { background: rgba(var(--p0),1); }
+  .art-lines { background: rgba(var(--p0),1); }
+  .art-field { background: linear-gradient(180deg, rgba(var(--p0),1) 0%, rgba(var(--p1),0.4) 100%); }
+
+  /* ── LIGHTBOX ── */
+  #lightbox {
+    position:fixed; inset:0; z-index:500;
+    background: rgba(0,0,0,.92); backdrop-filter:blur(24px);
+    display:none; align-items:center; justify-content:center;
+    cursor:none;
+  }
+  #lightbox.open { display:flex; }
+  .lb-inner {
+    max-width: 1000px; width:90%;
+    display:grid; grid-template-columns:1fr 1fr; gap:0;
+    border:1px solid var(--border);
+    background: var(--surface);
+    animation: lbIn .3s cubic-bezier(.2,0,.1,1);
+  }
+  @keyframes lbIn { from{opacity:0;transform:scale(.97)} to{opacity:1;transform:none} }
+  .lb-art { aspect-ratio:1; overflow:hidden; }
+  .lb-art canvas, .lb-art svg { width:100%;height:100%;display:block; }
+  .lb-meta { padding:48px 40px; display:flex; flex-direction:column; }
+  .lb-num {
+    font-size:10px; letter-spacing:.2em; text-transform:uppercase;
+    color: rgba(var(--p2),0.6); margin-bottom:24px;
+    transition: color 1.2s;
+  }
+  .lb-title {
+    font-family:'Cormorant Garamond',serif; font-size:36px; font-weight:300;
+    line-height:1; margin-bottom:8px; color:rgba(var(--p3),1);
+    transition: color 1.2s;
+  }
+  .lb-artist {
+    font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--text2); margin-bottom:32px;
+  }
+  .lb-desc {
+    font-size:13px; color:var(--text2); line-height:1.8;
+    margin-bottom:auto;
+  }
+  .lb-year {
+    font-size:60px; font-family:'Cormorant Garamond',serif; font-weight:300;
+    color: rgba(var(--p1),0.2); line-height:1;
+    transition: color 1.2s;
+    margin-top:32px;
+  }
+  .lb-close {
+    position:absolute; top:24px; right:24px;
+    width:40px; height:40px; border-radius:50%;
+    border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text2); font-size:18px; cursor:none;
+    transition:all .2s; background:rgba(0,0,0,.3);
+  }
+  .lb-close:hover { background:rgba(var(--p1),0.15); color:rgba(var(--p3),1); }
+
+  /* ── SCROLL DEPTH INDICATOR ── */
+  #depth-bar {
+    position:fixed; top:0; left:0; z-index:200;
+    height:2px; width:0%;
+    background: linear-gradient(90deg, rgba(var(--p1),0.8), rgba(var(--p2),1));
+    transition: width .1s, background 1.2s;
+  }
+
+  /* ── PALETTE STRIP ── */
+  #palette-strip {
+    position:fixed; right:20px; top:50%; transform:translateY(-50%);
+    z-index:100; display:flex; flex-direction:column; gap:4px;
+    pointer-events:none;
+  }
+  .ps-swatch {
+    width:8px; height:8px; border-radius:50%;
+    transition: background 1.2s, transform .3s, width .3s, height .3s;
+    cursor:default;
+  }
+  .ps-swatch.active { width:12px; height:12px; margin:-2px; }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top:1px solid var(--border);
+    padding:40px 40px;
+    display:flex; justify-content:space-between; align-items:center;
+    color:var(--text3); font-size:11px; letter-spacing:.08em;
+    position:relative; z-index:2;
+    transition: border-color 1.2s;
+  }
+  .footer-logo {
+    font-family:'Cormorant Garamond',serif; font-size:18px; font-weight:300;
+    color:rgba(var(--p2),0.4); letter-spacing:.15em; text-transform:uppercase;
+    transition: color 1.2s;
+  }
+
+  /* ── ENTRANCE ANIMATIONS ── */
+  .work-cell {
+    opacity:0; transform: translateY(20px);
+    animation: cellIn .6s cubic-bezier(.2,0,.1,1) forwards;
+  }
+  @keyframes cellIn { to{opacity:1;transform:none} }
+
+  .section-header { opacity:0; animation: fadeUp .7s .2s forwards; }
+  @keyframes fadeUp { to{opacity:1;transform:none} from{transform:translateY(12px)} }
+
+  h1 { clip-path:inset(0 100% 0 0); animation: revealH1 1.2s .1s cubic-bezier(.7,0,.3,1) forwards; }
+  @keyframes revealH1 { to{clip-path:inset(0 0% 0 0)} }
+
+  /* stagger grid cells */
+  .work-cell:nth-child(1)  { animation-delay: .05s }
+  .work-cell:nth-child(2)  { animation-delay: .08s }
+  .work-cell:nth-child(3)  { animation-delay: .11s }
+  .work-cell:nth-child(4)  { animation-delay: .14s }
+  .work-cell:nth-child(5)  { animation-delay: .17s }
+  .work-cell:nth-child(6)  { animation-delay: .20s }
+  .work-cell:nth-child(7)  { animation-delay: .23s }
+  .work-cell:nth-child(8)  { animation-delay: .26s }
+  .work-cell:nth-child(9)  { animation-delay: .29s }
+  .work-cell:nth-child(10) { animation-delay: .32s }
+  .work-cell:nth-child(11) { animation-delay: .35s }
+  .work-cell:nth-child(12) { animation-delay: .38s }
+  .work-cell:nth-child(13) { animation-delay: .41s }
+  .work-cell:nth-child(14) { animation-delay: .44s }
+  .work-cell:nth-child(15) { animation-delay: .47s }
+  .work-cell:nth-child(16) { animation-delay: .50s }
+</style>
+</head>
+<body>
+
+<!-- Scroll depth bar -->
+<div id="depth-bar"></div>
+
+<!-- Custom cursor -->
+<div id="cursor-ring"></div>
+<div id="cursor-dot"></div>
+
+<!-- Spotlight -->
+<div id="spotlight"></div>
+
+<!-- Palette strip -->
+<div id="palette-strip">
+  <div class="ps-swatch active" id="sw0"></div>
+  <div class="ps-swatch" id="sw1"></div>
+  <div class="ps-swatch" id="sw2"></div>
+  <div class="ps-swatch" id="sw3"></div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo">Chro<span>matic</span></div>
+  <nav>
+    <a href="#">Works</a>
+    <a href="#">Artists</a>
+    <a href="#">Archive</a>
+    <a href="#">About</a>
+  </nav>
+  <span class="nav-count" id="navCount">016 works</span>
+</header>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid-lines"></div>
+  <div class="hero-content">
+    <div class="hero-label">Current collection — 2024</div>
+    <h1>Color<br><em>Speaks</em><br>First</h1>
+    <p class="hero-sub">An interactive survey of works where pigment precedes form. Each piece remaps this environment through its dominant palette.</p>
+  </div>
+  <div class="hero-scroll">
+    <span>Scroll</span>
+    <div class="scroll-line"></div>
+  </div>
+</div>
+
+<!-- Works -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">Selected Works</div>
+    <div class="section-meta">Hover to preview · Click to expand</div>
+  </div>
+  <div class="works-grid" id="worksGrid"></div>
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-logo">Chromatic</div>
+  <div>© 2024 — All rights reserved</div>
+  <div id="footerPalette" style="display:flex;gap:8px;align-items:center;"></div>
+</footer>
+
+<!-- Lightbox -->
+<div id="lightbox">
+  <div style="position:relative">
+    <div class="lb-close" id="lbClose">✕</div>
+    <div class="lb-inner">
+      <div class="lb-art" id="lbArt"></div>
+      <div class="lb-meta">
+        <div class="lb-num" id="lbNum"></div>
+        <div class="lb-title" id="lbTitle"></div>
+        <div class="lb-artist" id="lbArtist"></div>
+        <div class="lb-desc" id="lbDesc"></div>
+        <div class="lb-year" id="lbYear"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────
+// WORKS DATA — each has a palette [dark, mid, light, highlight] as RGB triples
+// ─────────────────────────────────────────────────────────────────
+const WORKS = [
+  {
+    id:'w01', title:'Vermilion Drift',  artist:'E. Nakamura',
+    year:2019, tags:['Abstraction','Oil'],
+    desc:'Layers of cadmium red and raw sienna dragged across linen, referencing aerial views of Sonoran desert terrain at dusk.',
+    palette:{ p0:[60,14,8], p1:[185,45,20], p2:[240,140,60], p3:[255,230,190] }
+  },
+  {
+    id:'w02', title:'Celadon Fields',   artist:'M. Voss',
+    year:2021, tags:['Landscape','Gouache'],
+    desc:'Layered washes of celadon and viridian evoke overcast rice paddies seen from just above the waterline.',
+    palette:{ p0:[8,28,24], p1:[42,110,88], p2:[120,190,160], p3:[210,240,230] }
+  },
+  {
+    id:'w03', title:'Prussian Study I', artist:'F. Almeida',
+    year:2022, tags:['Study','Ink'],
+    desc:'Concentrated Prussian blue in alcohol dispersion, producing crystalline frost-like formations at the medium\'s edge.',
+    palette:{ p0:[4,12,38], p1:[20,60,140], p2:[80,140,220], p3:[200,220,255] }
+  },
+  {
+    id:'w04', title:'Raw Umber Fugue',  artist:'D. Otieno',
+    year:2020, tags:['Texture','Mixed Media'],
+    desc:'Encaustic wax over raw umber grounds; the texture of weathered bark rendered in geological layers.',
+    palette:{ p0:[28,16,8], p1:[110,68,28], p2:[190,148,90], p3:[240,220,185] }
+  },
+  {
+    id:'w05', title:'Cobalt Migration', artist:'S. Lindqvist',
+    year:2023, tags:['Large Format','Acrylic'],
+    desc:'Expansive cobalt surfaces interrupted by thin seams of yellow ochre — a cartography of atmospheric light.',
+    palette:{ p0:[6,10,42], p1:[34,72,180], p2:[90,148,240], p3:[210,228,255] }
+  },
+  {
+    id:'w06', title:'Saffron Membrane', artist:'C. Park',
+    year:2021, tags:['Watercolor','Translucency'],
+    desc:'Wet-into-wet saffron blooms mapped against Payne\'s gray — color as geological event.',
+    palette:{ p0:[40,22,2], p1:[196,130,8], p2:[248,190,60], p3:[255,242,190] }
+  },
+  {
+    id:'w07', title:'Venetian Echo',    artist:'L. Marchand',
+    year:2018, tags:['Classical','Tempera'],
+    desc:'Venetian red over bone white, referencing fresco fragments found beneath later plaster in Umbrian chapels.',
+    palette:{ p0:[44,10,6], p1:[172,52,32], p2:[220,140,100], p3:[252,228,210] }
+  },
+  {
+    id:'w08', title:'Viridian Sequence',artist:'T. Okafor',
+    year:2022, tags:['Series','Oil'],
+    desc:'The fifth of nine panels exploring viridian\'s relationship to black in different mediums and dilutions.',
+    palette:{ p0:[4,24,18], p1:[28,100,70], p2:[80,172,128], p3:[195,238,215] }
+  },
+  {
+    id:'w09', title:'Indigo Collapse',  artist:'E. Nakamura',
+    year:2023, tags:['Abstract','Pigment'],
+    desc:'Indigo pigment allowed to settle and crack across a gesso field — controlled surrender to entropy.',
+    palette:{ p0:[10,6,38], p1:[48,28,140], p2:[110,80,210], p3:[210,195,255] }
+  },
+  {
+    id:'w10', title:'Burnt Topography', artist:'F. Almeida',
+    year:2020, tags:['Texture','Encaustic'],
+    desc:'Burnt sienna encaustic layers carved back with a heated blade, revealing successive geological strata.',
+    palette:{ p0:[36,12,4], p1:[150,60,18], p2:[220,130,60], p3:[255,220,175] }
+  },
+  {
+    id:'w11', title:'Chrome Latitude',  artist:'M. Voss',
+    year:2024, tags:['Chromatic','Digital'],
+    desc:'Chrome yellow gradients across 3.2 meters — a meditation on how saturation diminishes with distance.',
+    palette:{ p0:[28,20,2], p1:[168,128,8], p2:[234,200,52], p3:[255,248,190] }
+  },
+  {
+    id:'w12', title:'Malachite Shore',  artist:'S. Lindqvist',
+    year:2019, tags:['Landscape','Mineral'],
+    desc:'Malachite pigment in linseed on birch; the mineral\'s banded structure translated into shoreline geometry.',
+    palette:{ p0:[6,22,12], p1:[30,96,52], p2:[72,170,100], p3:[190,240,205] }
+  },
+  {
+    id:'w13', title:'Ochre Passage',    artist:'D. Otieno',
+    year:2021, tags:['Passage','Oil'],
+    desc:'Yellow ochre underpainting allowed to show through overworked glazes — a negotiation between intention and accident.',
+    palette:{ p0:[32,22,4], p1:[160,112,24], p2:[218,178,72], p3:[252,238,188] }
+  },
+  {
+    id:'w14', title:'Alizarin Thread',  artist:'C. Park',
+    year:2022, tags:['Minimal','Oil'],
+    desc:'A single drawn line of alizarin crimson on unprimed canvas — pigment absorbed, bled, permanent.',
+    palette:{ p0:[38,6,14], p1:[168,22,52], p2:[220,80,110], p3:[255,200,215] }
+  },
+  {
+    id:'w15', title:'Titanium Silence', artist:'L. Marchand',
+    year:2023, tags:['Minimalism','White'],
+    desc:'Titanium white over titanium white — each layer at a different temperature, creating sculptural depth from absence.',
+    palette:{ p0:[22,22,24], p1:[90,90,98], p2:[180,180,190], p3:[240,240,248] }
+  },
+  {
+    id:'w16', title:'Van Dyke Hollow',  artist:'T. Okafor',
+    year:2024, tags:['Dark','Oil'],
+    desc:'Van Dyke brown grounds probed with titanium passages — the light that survives darkness.',
+    palette:{ p0:[12,8,4], p1:[68,40,16], p2:[152,110,60], p3:[228,200,160] }
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────
+let activePaletteIdx = 0;
+let mx = window.innerWidth/2, my = window.innerHeight/2;
+let smoothX = mx, smoothY = my;
+let raf;
+let currentWork = null;
+
+// ─────────────────────────────────────────────────────────────────
+// CURSOR
+// ─────────────────────────────────────────────────────────────────
+const ring = document.getElementById('cursor-ring');
+const dot  = document.getElementById('cursor-dot');
+let ringX=mx,ringY=my;
+
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  dot.style.left = mx+'px';
+  dot.style.top  = my+'px';
+  document.documentElement.style.setProperty('--cursor-x', mx+'px');
+  document.documentElement.style.setProperty('--cursor-y', my+'px');
+});
+
+function animateCursor() {
+  ringX += (mx - ringX) * 0.12;
+  ringY += (my - ringY) * 0.12;
+  ring.style.left = ringX+'px';
+  ring.style.top  = ringY+'px';
+  requestAnimationFrame(animateCursor);
+}
+animateCursor();
+
+document.querySelectorAll('a, .work-cell, .lb-close, nav a').forEach(el => {
+  el.addEventListener('mouseenter', () => document.body.classList.add('hovering'));
+  el.addEventListener('mouseleave', () => document.body.classList.remove('hovering'));
+});
+
+// ─────────────────────────────────────────────────────────────────
+// PALETTE SYSTEM
+// ─────────────────────────────────────────────────────────────────
+function setPalette(work, instant) {
+  const p = work.palette;
+  const root = document.documentElement;
+  const dur = instant ? '0s' : '1.2s';
+  root.style.setProperty('--trans-dur', dur);
+
+  function setVar(name, rgb) {
+    root.style.setProperty(name, rgb.join(','));
+  }
+  setVar('--p0', p.p0);
+  setVar('--p1', p.p1);
+  setVar('--p2', p.p2);
+  setVar('--p3', p.p3);
+
+  // update palette swatches
+  const swatches = [p.p0, p.p1, p.p2, p.p3];
+  swatches.forEach((s,i) => {
+    const sw = document.getElementById('sw'+i);
+    if(sw) sw.style.background = `rgb(${s.join(',')})`;
+  });
+
+  // footer palette
+  const fp = document.getElementById('footerPalette');
+  fp.innerHTML = swatches.map(s =>
+    `<div style="width:16px;height:16px;border-radius:2px;background:rgb(${s.join(',')});transition:background 1.2s"></div>`
+  ).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SCROLL DEPTH
+// ─────────────────────────────────────────────────────────────────
+function onScroll() {
+  const total = document.body.scrollHeight - window.innerHeight;
+  const progress = Math.min(total > 0 ? window.scrollY / total : 0, 1);
+  document.getElementById('depth-bar').style.width = (progress * 100) + '%';
+
+  // determine which work is most "in view"
+  const cells = document.querySelectorAll('.work-cell');
+  let bestIdx = 0, bestVis = -1;
+  cells.forEach((cell, i) => {
+    const rect = cell.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const visTop = Math.max(0, Math.min(rect.bottom, vh));
+    const visBot = Math.max(0, Math.min(vh - rect.top, vh));
+    const vis = Math.min(visTop, visBot) * (rect.right - rect.left);
+    if (vis > bestVis) { bestVis = vis; bestIdx = i; }
+  });
+
+  if (bestIdx !== activePaletteIdx) {
+    activePaletteIdx = bestIdx;
+    setPalette(WORKS[bestIdx]);
+    // update active swatch
+    document.querySelectorAll('.ps-swatch').forEach((s,i) => s.classList.toggle('active', i===0));
+  }
+}
+window.addEventListener('scroll', onScroll, { passive: true });
+
+// ─────────────────────────────────────────────────────────────────
+// ART GENERATOR — SVG compositions per work
+// ─────────────────────────────────────────────────────────────────
+function makeSVG(work, w, h) {
+  const p = work.palette;
+  const c0 = `rgb(${p.p0})`, c1 = `rgb(${p.p1})`, c2 = `rgb(${p.p2})`, c3 = `rgb(${p.p3})`;
+  const seed = work.id.charCodeAt(1) + work.year;
+  const r = (min,max) => min + ((seed * 9301 + 49297) % 233280) / 233280 * (max-min);
+
+  // Different generative patterns based on index
+  const idx = WORKS.indexOf(work) % 6;
+
+  const patterns = {
+    0: () => { // organic layers
+      let paths = '';
+      for(let i=0;i<6;i++){
+        const y = h*(0.2+i*0.13);
+        const amp = 20 + i*8;
+        const freq = 0.008 + i*0.002;
+        let d = `M0,${y}`;
+        for(let x=0;x<=w;x+=6){
+          const ny = y + Math.sin(x*freq + i*1.3)*amp + Math.cos(x*freq*2.1)*amp*0.4;
+          d += ` L${x},${ny}`;
+        }
+        d += ` L${w},${h} L0,${h} Z`;
+        const opacity = 0.12 + i*0.14;
+        const color = i<2?c1:i<4?c2:c3;
+        paths += `<path d="${d}" fill="${color}" opacity="${opacity}"/>`;
+      }
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <rect width="${w}" height="${h}" fill="${c0}"/>
+        ${paths}
+      </svg>`;
+    },
+    1: () => { // geometric grid
+      let shapes = '';
+      const cols = 6, rows = 6;
+      const cw = w/cols, ch = h/rows;
+      for(let cx=0;cx<cols;cx++) for(let cy=0;cy<rows;cy++){
+        const v = (cx*rows+cy+seed) % 7;
+        const fill = v<2?c0:v<4?c1:v<6?c2:c3;
+        const opacity = 0.3+v*0.1;
+        shapes += `<rect x="${cx*cw}" y="${cy*ch}" width="${cw-1}" height="${ch-1}" fill="${fill}" opacity="${opacity}"/>`;
+      }
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <rect width="${w}" height="${h}" fill="${c0}"/>
+        ${shapes}
+      </svg>`;
+    },
+    2: () => { // concentric circles
+      let circles = '';
+      const maxR = Math.min(w,h)*0.8;
+      for(let i=0;i<12;i++){
+        const rad = maxR*(1-i/12);
+        const color = i%4===0?c1:i%4===1?c2:i%4===2?c3:c0;
+        const op = 0.08 + i*0.07;
+        circles += `<circle cx="${w/2}" cy="${h/2}" r="${rad}" fill="none" stroke="${color}" stroke-width="${maxR/14}" opacity="${op}"/>`;
+      }
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <rect width="${w}" height="${h}" fill="${c0}"/>
+        ${circles}
+        <circle cx="${w/2}" cy="${h/2}" r="${maxR*0.1}" fill="${c2}" opacity="0.4"/>
+      </svg>`;
+    },
+    3: () => { // diagonal lines
+      let lines = '';
+      const step = Math.min(w,h)/18;
+      for(let i=-20;i<40;i++){
+        const x = i*step;
+        const opacity = 0.04 + Math.abs(Math.sin(i*0.4))*0.2;
+        const color = i%3===0?c1:i%3===1?c2:c3;
+        lines += `<line x1="${x}" y1="0" x2="${x+h}" y2="${h}" stroke="${color}" stroke-width="${step*0.4}" opacity="${opacity}"/>`;
+      }
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <rect width="${w}" height="${h}" fill="${c0}"/>
+        ${lines}
+      </svg>`;
+    },
+    4: () => { // ink bleed
+      let blobs = '';
+      for(let i=0;i<5;i++){
+        const cx = w*(0.2+i*0.15);
+        const cy = h*(0.3+Math.sin(i*1.8)*0.25);
+        const rx = w*(0.12+i*0.03);
+        const ry = h*(0.15+i*0.02);
+        const color = i<2?c1:i<4?c2:c3;
+        blobs += `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${color}" opacity="${0.15+i*0.08}"/>`;
+      }
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <defs><filter id="f${work.id}"><feGaussianBlur stdDeviation="${Math.min(w,h)*0.06}"/></filter></defs>
+        <rect width="${w}" height="${h}" fill="${c0}"/>
+        <g filter="url(#f${work.id})">${blobs}</g>
+      </svg>`;
+    },
+    5: () => { // vertical fields
+      let rects = '';
+      const bands = 8;
+      const bw = w/bands;
+      for(let i=0;i<bands;i++){
+        const t = i/(bands-1);
+        const color = i<bands/3?c1:i<2*bands/3?c2:c3;
+        const op = 0.08 + Math.sin(i/bands*Math.PI)*0.4;
+        rects += `<rect x="${i*bw}" y="0" width="${bw+1}" height="${h}" fill="${color}" opacity="${op}"/>`;
+      }
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <defs><linearGradient id="vg${work.id}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${c0}"/>
+          <stop offset="100%" stop-color="${c1}" stop-opacity="0.5"/>
+        </linearGradient></defs>
+        <rect width="${w}" height="${h}" fill="url(#vg${work.id})"/>
+        ${rects}
+      </svg>`;
+    },
+  };
+
+  return (patterns[idx] || patterns[0])();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// BUILD GRID
+// ─────────────────────────────────────────────────────────────────
+function buildGrid() {
+  const grid = document.getElementById('worksGrid');
+  WORKS.forEach((work, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'work-cell';
+    cell.dataset.idx = i;
+
+    const artwork = document.createElement('div');
+    artwork.className = 'work-artwork';
+
+    const canvas = document.createElement('div');
+    canvas.className = 'work-canvas';
+    canvas.innerHTML = makeSVG(work, 600, 600);
+
+    artwork.appendChild(canvas);
+    cell.appendChild(artwork);
+
+    // overlay elements
+    cell.innerHTML += `
+      <div class="ripple"></div>
+      <div class="work-overlay"></div>
+      <div class="work-expand">+</div>
+      <div class="work-info">
+        <div class="work-title">${work.title}</div>
+        <div class="work-artist">${work.artist} · ${work.year}</div>
+        <div class="work-tags">${work.tags.map(t=>`<span class="work-tag">${t}</span>`).join('')}</div>
+      </div>
+    `;
+    cell.appendChild(artwork);
+
+    // magnetic tilt
+    cell.addEventListener('mousemove', e => {
+      const rect = cell.getBoundingClientRect();
+      const rx = ((e.clientX - rect.left) / rect.width  - .5) * 6;
+      const ry = ((e.clientY - rect.top)  / rect.height - .5) * 6;
+      cell.style.transform = `perspective(800px) rotateY(${rx}deg) rotateX(${-ry}deg) scale(1.015)`;
+      // ripple position
+      const ripple = cell.querySelector('.ripple');
+      if(ripple){
+        const px = ((e.clientX-rect.left)/rect.width*100).toFixed(1);
+        const py = ((e.clientY-rect.top)/rect.height*100).toFixed(1);
+        ripple.style.setProperty('--rx', px+'%');
+        ripple.style.setProperty('--ry', py+'%');
+      }
+      // hover sets palette
+      setPalette(work);
+      activePaletteIdx = i;
+    });
+    cell.addEventListener('mouseleave', () => {
+      cell.style.transform = '';
+    });
+    cell.addEventListener('click', () => openLightbox(work, i));
+
+    grid.appendChild(cell);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
+// LIGHTBOX
+// ─────────────────────────────────────────────────────────────────
+function openLightbox(work, idx) {
+  const lb = document.getElementById('lightbox');
+  document.getElementById('lbNum').textContent = `${String(idx+1).padStart(3,'0')} / ${String(WORKS.length).padStart(3,'0')}`;
+  document.getElementById('lbTitle').textContent = work.title;
+  document.getElementById('lbArtist').textContent = work.artist;
+  document.getElementById('lbDesc').textContent = work.desc;
+  document.getElementById('lbYear').textContent = work.year;
+
+  const artEl = document.getElementById('lbArt');
+  artEl.innerHTML = makeSVG(work, 800, 800);
+
+  setPalette(work);
+  lb.classList.add('open');
+  currentWork = work;
+}
+
+document.getElementById('lbClose').addEventListener('click', () => {
+  document.getElementById('lightbox').classList.remove('open');
+});
+document.getElementById('lightbox').addEventListener('click', e => {
+  if(e.target === document.getElementById('lightbox')) {
+    document.getElementById('lightbox').classList.remove('open');
+  }
+});
+document.addEventListener('keydown', e => {
+  if(e.key==='Escape') document.getElementById('lightbox').classList.remove('open');
+});
+
+// ─────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────
+buildGrid();
+setPalette(WORKS[0], true);
+onScroll();
+</script>
+</body>
+</html>
